@@ -268,38 +268,47 @@
                 // Holistic Slot Filling: Try a few shuffles to find the best combination for this time slot
                 for (let attempt = 0; attempt < 100; attempt++) {
                     let currentSlotMatches = Array(nC).fill(null);
-                    let busy = new Set();
+                    let busyT = new Set();
+                    let busyG = new Set();
                     let matchesForThisSlot = 0;
 
-                    // Sort/Shuffle available matches to explore different combinations
                     let candidates = pool.filter(m => !m.played);
                     if (attempt > 0) candidates.sort(() => Math.random() - 0.5);
 
+                    const getRem = (tid) => pool.filter(m => !m.played && (m.t1 === tid || m.t2 === tid)).length;
+
                     for (let c = 0; c < nC; c++) {
-                        // Find the best match for this carpet in this permutation
                         let bestM = null;
-                        let bestScore = -1;
+                        let bestS = -1;
 
                         for (let m of candidates) {
-                            if (busy.has(m.t1) || busy.has(m.t2)) continue;
+                            if (busyT.has(m.t1) || busyT.has(m.t2)) continue;
                             if (teamLastS[m.t1] === slotIdx - 1 || teamLastS[m.t2] === slotIdx - 1) continue;
 
-                            let rest1 = (teamLastS[m.t1] === undefined) ? 100 : (slotIdx - teamLastS[m.t1]);
-                            let rest2 = (teamLastS[m.t2] === undefined) ? 100 : (slotIdx - teamLastS[m.t2]);
-                            let score = (rest1 + rest2) * 10;
+                            // Group Diversity: Huge bonus for groups not yet in this slot
+                            let groupBonus = busyG.has(m.group) ? 0 : 5000;
+
+                            // Rest: Prioritize teams who have been waiting longer
+                            let r1 = (teamLastS[m.t1] === undefined) ? 100 : (slotIdx - teamLastS[m.t1]);
+                            let r2 = (teamLastS[m.t2] === undefined) ? 100 : (slotIdx - teamLastS[m.t2]);
+
+                            // Work: Prioritize teams with most matches left to play
+                            let workBonus = (getRem(m.t1) + getRem(m.t2)) * 50;
+
+                            let score = groupBonus + (r1 + r2) * 10 + workBonus;
                             if (db.teamLastC[m.t1] === c || db.teamLastC[m.t2] === c) score -= 5;
 
-                            if (score > bestScore) {
-                                bestScore = score;
+                            if (score > bestS) {
+                                bestS = score;
                                 bestM = m;
                             }
                         }
 
                         if (bestM) {
                             currentSlotMatches[c] = bestM;
-                            busy.add(bestM.t1); busy.add(bestM.t2);
+                            busyT.add(bestM.t1); busyT.add(bestM.t2);
+                            busyG.add(bestM.group);
                             matchesForThisSlot++;
-                            // Temporarily remove from candidates for this attempt
                             candidates = candidates.filter(x => x.id !== bestM.id);
                         }
                     }
@@ -307,9 +316,9 @@
                     if (matchesForThisSlot > maxFilled) {
                         maxFilled = matchesForThisSlot;
                         bestSlotMatches = currentSlotMatches;
-                        if (maxFilled === nC) break; // Efficiency: found a full slot
+                        if (maxFilled === nC) break;
                     }
-                    if (attempt > 20 && maxFilled > 0) break; // Diminishing returns
+                    if (attempt > 30 && maxFilled > 0) break;
                 }
 
                 if (maxFilled > 0) {
@@ -325,7 +334,6 @@
                     db.slots.push(slot);
                     time += 15; if (time % 100 >= 60) time += 40;
                 } else {
-                    // Safety: if no match found even with shuffles, advance time only
                     time += 15; if (time % 100 >= 60) time += 40;
                     if (db.slots.length > 500) break;
                 }
