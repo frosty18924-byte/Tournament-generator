@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bowls Master - Restored Logic & Team Entry</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background: #f0f4f8;
+            padding: 15px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: #1b5e20;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .config-box {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 15px;
+            padding: 20px;
+            background: #fff;
+            border-bottom: 2px solid #ddd;
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        input,
+        select {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin-top: 4px;
+        }
+
+        .btn-main {
+            padding: 12px;
+            background: #2e7d32;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .tabs {
+            display: flex;
+            background: #263238;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            background: none;
+            color: #b0bec5;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .tab.active {
+            color: white;
+            background: rgba(255, 255, 255, 0.1);
+            border-bottom: 4px solid #81c784;
+        }
+
+        .content {
+            padding: 20px;
+            display: none;
+        }
+
+        .content.active {
+            display: block;
+        }
+
+        .team-entry-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 8px;
+            margin-top: 15px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            table-layout: fixed;
+        }
+
+        th,
+        td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+            font-size: 0.85rem;
+        }
+
+        th {
+            background: #f1f8e9;
+            color: #1b5e20;
+        }
+
+        .score-input {
+            width: 35px;
+            text-align: center;
+            border: 1px solid #81c784;
+            font-weight: bold;
+        }
+
+        .bracket-row {
+            display: flex;
+            gap: 20px;
+            overflow-x: auto;
+            padding: 10px;
+            background: #f9f9f9;
+            border-radius: 8px;
+        }
+
+        .round-box {
+            min-width: 200px;
+        }
+
+        .match-card {
+            background: white;
+            border: 1px solid #ccc;
+            padding: 8px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <div class="header">
+            <h1>Carpet Bowls Pro</h1>
+            <p>Restored Saturation Logic • Conflict-Aware Seeding • Full Finals Path</p>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="showTab(event, 'setup-view')">1. SETUP</button>
+            <button class="tab" id="t-group" onclick="showTab(event, 'grid-view')">2. GROUP GRID</button>
+            <button class="tab" id="t-league" onclick="showTab(event, 'league-view')">3. STANDINGS</button>
+            <button class="tab" id="t-ko" onclick="showTab(event, 'ko-view')">4. KNOCKOUTS</button>
+        </div>
+
+        <div id="setup-view" class="content active">
+            <div class="config-box">
+                <div class="field"><label>Total Teams</label><input type="number" id="nT" value="12"
+                        onchange="drawTeamInputs()"></div>
+                <div class="field"><label>Groups</label><input type="number" id="nG" value="2"></div>
+                <div class="field"><label>Carpets</label><input type="number" id="nC" value="3"></div>
+                <div class="field"><label>Qualify To</label>
+                    <select id="koSize">
+                        <option value="4">Top 4</option>
+                        <option value="8" selected>Top 8</option>
+                        <option value="16">Top 16</option>
+                    </select>
+                </div>
+            </div>
+            <h3>Register Teams (Similar names will be spread across groups)</h3>
+            <div id="team-inputs" class="team-entry-grid"></div>
+            <button class="btn-main" onclick="generateTournament()">GENERATE OPTIMIZED GROUP STAGE</button>
+        </div>
+
+        <div id="grid-view" class="content"></div>
+        <div id="league-view" class="content">
+            <div id="league-target"
+                style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px;"></div>
+        </div>
+        <div id="ko-view" class="content">
+            <button class="btn-main" style="background: #ef6c00; margin-bottom: 20px;" onclick="generateKnockout()">MAP
+                FULL KNOCKOUT BRACKET</button>
+            <div id="ko-plan-target"></div>
+        </div>
+    </div>
+
+    <script>
+        let db = { slots: [], groups: {}, teamLastC: {}, teamNames: {} };
+
+        function showTab(e, id) {
+            document.querySelectorAll('.content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            if (e) e.currentTarget.classList.add('active');
+        }
+
+        function drawTeamInputs() {
+            const n = document.getElementById('nT').value;
+            let h = '';
+            for (let i = 1; i <= n; i++) h += `<div><label>#${i}</label><input type="text" id="tn${i}" value="Team ${i}" class="t-in"></div>`;
+            document.getElementById('team-inputs').innerHTML = h;
+        }
+        drawTeamInputs();
+
+        function generateTournament() {
+            const nT = parseInt(document.getElementById('nT').value);
+            let nG = parseInt(document.getElementById('nG').value);
+            const nC = parseInt(document.getElementById('nC').value);
+
+            // USER RULE: Max 5 teams in a group if > 16 teams
+            if (nT > 16) {
+                const targetNG = Math.ceil(nT / 5);
+                if (nG < targetNG) {
+                    nG = targetNG;
+                    document.getElementById('nG').value = nG;
+                    console.log(`Auto-adjusted groups to ${nG} to maintain max 5 teams per group.`);
+                }
+            }
+
+            // 1. Distribute teams (Manchester Rule)
+            let teamList = [];
+            for (let i = 1; i <= nT; i++) teamList.push({ id: i, name: document.getElementById(`tn${i}`).value });
+            teamList.sort((a, b) => a.name.localeCompare(b.name));
+
+            db.groups = {};
+            for (let i = 0; i < nG; i++) db.groups[String.fromCharCode(65 + i)] = { teams: [] };
+            teamList.forEach((t, idx) => {
+                db.groups[String.fromCharCode(65 + (idx % nG))].teams.push(t);
+                db.teamNames[t.id] = t.name;
+            });
+
+            // 2. Build Match Pool
+            let pool = [];
+            Object.keys(db.groups).forEach(gn => {
+                let ts = db.groups[gn].teams;
+                for (let i = 0; i < ts.length; i++)
+                    for (let j = i + 1; j < ts.length; j++)
+                        pool.push({ t1: ts[i].id, t2: ts[j].id, group: gn, played: false, id: Math.random() });
+            });
+
+            // 3. SATURATION ENGINE (OPTIMIZED FOR DURATION & CONSTRAINTS)
+            db.slots = [];
+            let time = 900;
+            let teamLastS = {}; // Last slot index each team played in
+            db.teamLastC = {}; // Last carpet index each team played on
+
+            while (pool.some(m => !m.played)) {
+                let slotIdx = db.slots.length;
+                let slot = { time: formatTime(time), games: Array(nC).fill(null) };
+                let busy = new Set();
+
+                // Helper to count games remaining for a team
+                const getRemaining = (tid) => pool.filter(m => !m.played && (m.t1 === tid || m.t2 === tid)).length;
+
+                // GREEDY SATURATION (Replaces recursive DFS to prevent freeze on scale)
+                for (let c = 0; c < nC; c++) {
+                    let bestMatch = null;
+                    let maxScore = -1;
+
+                    // Evaluate all available matches for this carpet
+                    for (let i = 0; i < pool.length; i++) {
+                        let m = pool[i];
+                        if (m.played || busy.has(m.t1) || busy.has(m.t2)) continue;
+
+                        // No back-to-back constraint
+                        if (teamLastS[m.t1] === slotIdx - 1 || teamLastS[m.t2] === slotIdx - 1) continue;
+
+                        let r1 = (teamLastS[m.t1] === undefined) ? 100 : (slotIdx - teamLastS[m.t1]);
+                        let r2 = (teamLastS[m.t2] === undefined) ? 100 : (slotIdx - teamLastS[m.t2]);
+                        let work = getRemaining(m.t1) + getRemaining(m.t2);
+
+                        // Scoring logic: High rest time + high remaining work
+                        let score = (r1 + r2) * 100 + work;
+
+                        // Carpet reuse penalty
+                        if (db.teamLastC[m.t1] === c || db.teamLastC[m.t2] === c) score -= 50;
+
+                        if (score > maxScore) {
+                            maxScore = score;
+                            bestMatch = m;
+                        }
+                    }
+
+                    if (bestMatch) {
+                        bestMatch.played = true;
+                        busy.add(bestMatch.t1);
+                        busy.add(bestMatch.t2);
+                        slot.games[c] = { ...bestMatch, s1: null, s2: null };
+                        teamLastS[bestMatch.t1] = slotIdx;
+                        teamLastS[bestMatch.t2] = slotIdx;
+                        db.teamLastC[bestMatch.t1] = c;
+                        db.teamLastC[bestMatch.t2] = c;
+                    }
+                }
+
+                if (slot.games.some(g => g !== null)) {
+                    db.slots.push(slot);
+                    time += 15;
+                    if (time % 100 >= 60) time += 40;
+                } else {
+                    // If no games could be scheduled, advance time anyway
+                    time += 15;
+                    if (time % 100 >= 60) time += 40;
+                    if (db.slots.length > 500) break; // Hard safety
+                }
+            }
+            renderGrid(); renderLeagues();
+            showTab(null, 'grid-view');
+            document.getElementById('t-group').classList.add('active');
+        }
+
+        function generateKnockout() {
+            const koSize = parseInt(document.getElementById('koSize').value);
+            const nC = parseInt(document.getElementById('nC').value);
+
+            let pool = [];
+            Object.keys(db.groups).forEach(gn => {
+                let stats = calcStats(gn);
+                stats.forEach((s, i) => { s.rank = i + 1; s.gn = gn; pool.push(s); });
+            });
+            pool.sort((a, b) => a.rank - b.rank || b.pts - a.pts || b.sd - a.sd);
+            let quals = pool.slice(0, koSize);
+
+            let matches = [];
+            for (let i = 0; i < koSize / 2; i++) matches.push({ t1: quals[i], t2: quals[koSize - 1 - i], label: `Match ${i + 1}` });
+
+            // Bracket Tree
+            let h = `<div class="bracket-row">`;
+            let rounds = Math.log2(koSize);
+            let tempM = [...matches];
+            for (let r = 0; r < rounds; r++) {
+                h += `<div class="round-box"><h4>${r == 0 ? "Quarters" : r == rounds - 1 ? "Final" : "Semis"}</h4>`;
+                tempM.forEach(m => {
+                    h += `<div class="match-card"><b>${r == 0 ? m.label : 'Winner'}</b><br>${r == 0 ? m.t1.name : 'TBD'} vs ${r == 0 ? m.t2.name : 'TBD'}</div>`;
+                });
+                h += `</div>`; tempM = Array(tempM.length / 2).fill({});
+            }
+            h += `</div>`;
+
+            // Balanced Session Plan
+            let plan = `<div style="margin-top:20px"><h3>Finals Session Plan (Min 2 carpets used)</h3><table>`;
+            let matchesR1 = [...matches];
+            let sessionSize = Math.max(2, Math.min(nC, Math.ceil(matchesR1.length / 2)));
+            if (matchesR1.length === 1) sessionSize = 1;
+
+            while (matchesR1.length > 0) {
+                let chunk = matchesR1.splice(0, sessionSize);
+                plan += `<tr><th>Time</th>`;
+                for (let i = 1; i <= chunk.length; i++) plan += `<th>Carpet ${i}</th>`;
+                plan += `</tr><tr><td>TBD</td>`;
+                chunk.forEach(m => plan += `<td>${m.label}<br>${m.t1.name} v ${m.t2.name}</td>`);
+                plan += `</tr>`;
+            }
+            document.getElementById('ko-plan-target').innerHTML = h + plan + `</table></div>`;
+        }
+
+        function calcStats(gn) {
+            let s = {};
+            db.groups[gn].teams.forEach(t => s[t.id] = { id: t.id, name: t.name, pts: 0, p: 0, sd: 0 });
+            db.slots.forEach(sl => sl.games.forEach(g => {
+                if (g && g.group == gn && g.s1 !== null && !isNaN(g.s1)) {
+                    s[g.t1].p++; s[g.t2].p++;
+                    s[g.t1].sd += (g.s1 - g.s2); s[g.t2].sd += (g.s2 - g.s1);
+                    if (g.s1 > g.s2) s[g.t1].pts += 2; else if (g.s2 > g.s1) s[g.t2].pts += 2; else { s[g.t1].pts++; s[g.t2].pts++; }
+                }
+            }));
+            return Object.values(s).sort((a, b) => b.pts - a.pts || b.sd - a.sd);
+        }
+
+        function renderGrid() {
+            let nC = parseInt(document.getElementById('nC').value);
+            let h = `<table><tr><th>Time</th>`;
+            for (let i = 1; i <= nC; i++) h += `<th>Carpet ${i}</th>`;
+            h += `</tr>`;
+            db.slots.forEach(s => {
+                h += `<tr><td><strong>${s.time}</strong></td>`;
+                s.games.forEach(g => {
+                    h += g ? `<td>G${g.group}<br>${db.teamNames[g.t1]} v ${db.teamNames[g.t2]}<br><input class="score-input" onchange="upS('${g.id}',1,this.value)">:<input class="score-input" onchange="upS('${g.id}',2,this.value)"></td>` : `<td>-</td>`;
+                });
+                h += `</tr>`;
+            });
+            document.getElementById('grid-view').innerHTML = h + `</table>`;
+        }
+
+        function upS(id, side, val) {
+            db.slots.forEach(s => s.games.forEach(g => { if (g && g.id == id) { if (side == 1) g.s1 = parseInt(val); else g.s2 = parseInt(val); } }));
+            renderLeagues();
+        }
+
+        function renderLeagues() {
+            let h = "";
+            Object.keys(db.groups).forEach(gn => {
+                let stats = calcStats(gn);
+                h += `<div style="padding:10px; border:1px solid #ddd; background:white;"><h3>Group ${gn}</h3><table><tr><th>Team</th><th>Pts</th><th>SD</th></tr>`;
+                stats.forEach((r, i) => h += `<tr class="${i < 2 ? 'active' : ''}"><td>${r.name}</td><td>${r.pts}</td><td>${r.sd}</td></tr>`);
+                h += `</table></div>`;
+            });
+            document.getElementById('league-target').innerHTML = h;
+        }
+
+        function formatTime(t) {
+            let s = String(t).padStart(4, '0');
+            return s.slice(0, 2) + ":" + s.slice(2);
+        }
+    </script>
+</body>
+
+</html>
