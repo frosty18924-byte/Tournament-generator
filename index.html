@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bowls Master - Restored Logic & Team Entry</title>
+    <title>Bowls Master - Refined Knockouts & Scaling</title>
     <style>
         * {
             margin: 0;
@@ -164,7 +164,7 @@
     <div class="container">
         <div class="header">
             <h1>Carpet Bowls Pro</h1>
-            <p>Restored Saturation Logic • Conflict-Aware Seeding • Full Finals Path</p>
+            <p>Advanced Seeding • Refined Knockouts • Conflict-Aware Sessions</p>
         </div>
 
         <div class="tabs">
@@ -188,7 +188,7 @@
                     </select>
                 </div>
             </div>
-            <h3>Register Teams (Similar names will be spread across groups)</h3>
+            <h3>Register Teams (Seeded across groups automatically)</h3>
             <div id="team-inputs" class="team-entry-grid"></div>
             <button class="btn-main" onclick="generateTournament()">GENERATE OPTIMIZED GROUP STAGE</button>
         </div>
@@ -206,7 +206,7 @@
     </div>
 
     <script>
-        let db = { slots: [], groups: {}, teamLastC: {}, teamNames: {} };
+        let db = { slots: [], groups: {}, teamLastC: {}, teamNames: {}, koMatches: [], koSlots: [] };
 
         function showTab(e, id) {
             document.querySelectorAll('.content').forEach(c => c.classList.remove('active'));
@@ -228,17 +228,14 @@
             let nG = parseInt(document.getElementById('nG').value);
             const nC = parseInt(document.getElementById('nC').value);
 
-            // USER RULE: Max 5 teams in a group if > 16 teams
             if (nT > 16) {
                 const targetNG = Math.ceil(nT / 5);
                 if (nG < targetNG) {
                     nG = targetNG;
                     document.getElementById('nG').value = nG;
-                    console.log(`Auto-adjusted groups to ${nG} to maintain max 5 teams per group.`);
                 }
             }
 
-            // 1. Distribute teams (Manchester Rule)
             let teamList = [];
             for (let i = 1; i <= nT; i++) teamList.push({ id: i, name: document.getElementById(`tn${i}`).value });
             teamList.sort((a, b) => a.name.localeCompare(b.name));
@@ -250,7 +247,6 @@
                 db.teamNames[t.id] = t.name;
             });
 
-            // 2. Build Match Pool
             let pool = [];
             Object.keys(db.groups).forEach(gn => {
                 let ts = db.groups[gn].teams;
@@ -259,70 +255,48 @@
                         pool.push({ t1: ts[i].id, t2: ts[j].id, group: gn, played: false, id: Math.random() });
             });
 
-            // 3. SATURATION ENGINE (OPTIMIZED FOR DURATION & CONSTRAINTS)
             db.slots = [];
             let time = 900;
-            let teamLastS = {}; // Last slot index each team played in
-            db.teamLastC = {}; // Last carpet index each team played on
+            let teamLastS = {};
+            db.teamLastC = {};
 
             while (pool.some(m => !m.played)) {
                 let slotIdx = db.slots.length;
                 let slot = { time: formatTime(time), games: Array(nC).fill(null) };
                 let busy = new Set();
-
-                // Helper to count games remaining for a team
                 const getRemaining = (tid) => pool.filter(m => !m.played && (m.t1 === tid || m.t2 === tid)).length;
 
-                // GREEDY SATURATION (Replaces recursive DFS to prevent freeze on scale)
                 for (let c = 0; c < nC; c++) {
                     let bestMatch = null;
                     let maxScore = -1;
-
-                    // Evaluate all available matches for this carpet
                     for (let i = 0; i < pool.length; i++) {
                         let m = pool[i];
                         if (m.played || busy.has(m.t1) || busy.has(m.t2)) continue;
-
-                        // No back-to-back constraint
                         if (teamLastS[m.t1] === slotIdx - 1 || teamLastS[m.t2] === slotIdx - 1) continue;
 
                         let r1 = (teamLastS[m.t1] === undefined) ? 100 : (slotIdx - teamLastS[m.t1]);
                         let r2 = (teamLastS[m.t2] === undefined) ? 100 : (slotIdx - teamLastS[m.t2]);
                         let work = getRemaining(m.t1) + getRemaining(m.t2);
-
-                        // Scoring logic: High rest time + high remaining work
                         let score = (r1 + r2) * 100 + work;
-
-                        // Carpet reuse penalty
                         if (db.teamLastC[m.t1] === c || db.teamLastC[m.t2] === c) score -= 50;
-
-                        if (score > maxScore) {
-                            maxScore = score;
-                            bestMatch = m;
-                        }
+                        if (score > maxScore) { maxScore = score; bestMatch = m; }
                     }
-
                     if (bestMatch) {
                         bestMatch.played = true;
-                        busy.add(bestMatch.t1);
-                        busy.add(bestMatch.t2);
+                        busy.add(bestMatch.t1); busy.add(bestMatch.t2);
                         slot.games[c] = { ...bestMatch, s1: null, s2: null };
-                        teamLastS[bestMatch.t1] = slotIdx;
-                        teamLastS[bestMatch.t2] = slotIdx;
-                        db.teamLastC[bestMatch.t1] = c;
-                        db.teamLastC[bestMatch.t2] = c;
+                        teamLastS[bestMatch.t1] = slotIdx; teamLastS[bestMatch.t2] = slotIdx;
+                        db.teamLastC[bestMatch.t1] = c; db.teamLastC[bestMatch.t2] = c;
                     }
                 }
-
                 if (slot.games.some(g => g !== null)) {
                     db.slots.push(slot);
                     time += 15;
                     if (time % 100 >= 60) time += 40;
                 } else {
-                    // If no games could be scheduled, advance time anyway
                     time += 15;
                     if (time % 100 >= 60) time += 40;
-                    if (db.slots.length > 500) break; // Hard safety
+                    if (db.slots.length > 500) break;
                 }
             }
             renderGrid(); renderLeagues();
@@ -342,37 +316,131 @@
             pool.sort((a, b) => a.rank - b.rank || b.pts - a.pts || b.sd - a.sd);
             let quals = pool.slice(0, koSize);
 
-            let matches = [];
-            for (let i = 0; i < koSize / 2; i++) matches.push({ t1: quals[i], t2: quals[koSize - 1 - i], label: `Match ${i + 1}` });
+            db.koMatches = [];
+            let numRounds = Math.log2(koSize);
 
-            // Bracket Tree
-            let h = `<div class="bracket-row">`;
-            let rounds = Math.log2(koSize);
-            let tempM = [...matches];
-            for (let r = 0; r < rounds; r++) {
-                h += `<div class="round-box"><h4>${r == 0 ? "Quarters" : r == rounds - 1 ? "Final" : "Semis"}</h4>`;
-                tempM.forEach(m => {
-                    h += `<div class="match-card"><b>${r == 0 ? m.label : 'Winner'}</b><br>${r == 0 ? m.t1.name : 'TBD'} vs ${r == 0 ? m.t2.name : 'TBD'}</div>`;
+            for (let r = 0; r < numRounds; r++) {
+                let mCount = koSize / Math.pow(2, r + 1);
+                for (let i = 0; i < mCount; i++) {
+                    db.koMatches.push({
+                        id: `R${r}M${i}`,
+                        round: r,
+                        t1: r === 0 ? quals[i] : null,
+                        t2: r === 0 ? quals[koSize - 1 - i] : null,
+                        s1: null, s2: null,
+                        winner: null,
+                        nextMatchId: r < numRounds - 1 ? `R${r + 1}M${Math.floor(i / 2)}` : null,
+                        nextSide: i % 2 === 0 ? 1 : 2
+                    });
+                }
+            }
+            scheduleKOSessions();
+            renderKO();
+        }
+
+        function scheduleKOSessions() {
+            const nC = parseInt(document.getElementById('nC').value);
+            let time = 1300;
+            db.koSlots = [];
+
+            let matchesToSchedule = [...db.koMatches.filter(m => m.round === 0)];
+            let total = matchesToSchedule.length;
+            if (total === 0) return;
+
+            // Balanced split: avoid having a final lone match if we can spread them
+            let numSessions = Math.ceil(total / nC);
+            let avg = Math.ceil(total / numSessions);
+
+            while (matchesToSchedule.length > 0) {
+                let slot = { time: formatTime(time), games: Array(nC).fill(null) };
+                let takeCount = Math.min(avg, matchesToSchedule.length);
+                let sessionMatches = matchesToSchedule.splice(0, takeCount);
+
+                sessionMatches.forEach((m) => {
+                    // Carpet variety: Try to find a carpet neither team played on last
+                    let bestC = -1;
+                    for (let c = 0; c < nC; c++) {
+                        if (slot.games[c]) continue;
+                        if (db.teamLastC[m.t1.id] !== c && db.teamLastC[m.t2.id] !== c) {
+                            bestC = c; break;
+                        }
+                    }
+                    if (bestC === -1) {
+                        for (let c = 0; c < nC; c++) if (!slot.games[c]) { bestC = c; break; }
+                    }
+
+                    if (bestC !== -1) {
+                        slot.games[bestC] = m;
+                        db.teamLastC[m.t1.id] = bestC;
+                        db.teamLastC[m.t2.id] = bestC;
+                    }
                 });
-                h += `</div>`; tempM = Array(tempM.length / 2).fill({});
+
+                db.koSlots.push(slot);
+                time += 20; if (time % 100 >= 60) time += 40;
+            }
+        }
+
+        function renderKO() {
+            const koSize = parseInt(document.getElementById('koSize').value);
+            let rounds = Math.log2(koSize);
+            let h = `<div class="bracket-row">`;
+
+            for (let r = 0; r < rounds; r++) {
+                let rLabel = r === 0 ? "Initial" : r === rounds - 1 ? "Final" : `Round ${r + 1}`;
+                if (r === rounds - 2 && rounds > 2) rLabel = "Semis";
+                if (r === 0 && koSize === 8) rLabel = "Quarters";
+
+                h += `<div class="round-box"><h4>${rLabel}</h4>`;
+                db.koMatches.filter(m => m.round === r).forEach(m => {
+                    let team1 = m.t1 ? m.t1.name : 'TBD';
+                    let team2 = m.t2 ? m.t2.name : 'TBD';
+                    h += `<div class="match-card">
+                        <div style="display:flex; justify-content:space-between;">
+                            <span>${team1}</span>
+                            <input class="score-input" value="${m.s1 || ''}" onchange="upKOScore('${m.id}',1,this.value)">
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-top:4px;">
+                            <span>${team2}</span>
+                            <input class="score-input" value="${m.s2 || ''}" onchange="upKOScore('${m.id}',2,this.value)">
+                        </div>
+                    </div>`;
+                });
+                h += `</div>`;
             }
             h += `</div>`;
 
-            // Balanced Session Plan
-            let plan = `<div style="margin-top:20px"><h3>Finals Session Plan (Min 2 carpets used)</h3><table>`;
-            let matchesR1 = [...matches];
-            let sessionSize = Math.max(2, Math.min(nC, Math.ceil(matchesR1.length / 2)));
-            if (matchesR1.length === 1) sessionSize = 1;
+            let plan = `<div style="margin-top:20px"><h3>Finals Session Plan (Carpet Variety Applied)</h3><table><tr><th>Time</th>`;
+            let nC = parseInt(document.getElementById('nC').value);
+            for (let i = 1; i <= nC; i++) plan += `<th>Carpet ${i}</th>`;
+            plan += `</tr>`;
 
-            while (matchesR1.length > 0) {
-                let chunk = matchesR1.splice(0, sessionSize);
-                plan += `<tr><th>Time</th>`;
-                for (let i = 1; i <= chunk.length; i++) plan += `<th>Carpet ${i}</th>`;
-                plan += `</tr><tr><td>TBD</td>`;
-                chunk.forEach(m => plan += `<td>${m.label}<br>${m.t1.name} v ${m.t2.name}</td>`);
+            db.koSlots.forEach(s => {
+                plan += `<tr><td>${s.time}</td>`;
+                s.games.forEach(g => {
+                    plan += g ? `<td>${g.t1?.name || 'TBD'} v ${g.t2?.name || 'TBD'}</td>` : `<td>-</td>`;
+                });
                 plan += `</tr>`;
+            });
+            plan += `</table></div>`;
+
+            document.getElementById('ko-plan-target').innerHTML = h + plan;
+        }
+
+        function upKOScore(mId, side, val) {
+            let m = db.koMatches.find(x => x.id === mId);
+            if (!m) return;
+            if (side === 1) m.s1 = parseInt(val); else m.s2 = parseInt(val);
+
+            if (m.s1 !== null && m.s2 !== null && !isNaN(m.s1) && !isNaN(m.s2)) {
+                if (m.s1 === m.s2) return;
+                m.winner = m.s1 > m.s2 ? m.t1 : m.t2;
+                if (m.nextMatchId) {
+                    let nextM = db.koMatches.find(x => x.id === m.nextMatchId);
+                    if (m.nextSide === 1) nextM.t1 = m.winner; else nextM.t2 = m.winner;
+                }
+                renderKO();
             }
-            document.getElementById('ko-plan-target').innerHTML = h + plan + `</table></div>`;
         }
 
         function calcStats(gn) {
