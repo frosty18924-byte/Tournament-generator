@@ -265,8 +265,8 @@
                 let bestSlotMatches = [];
                 let maxFilled = -1;
 
-                // Holistic Slot Filling: Try a few shuffles to find the best combination for this time slot
-                for (let attempt = 0; attempt < 100; attempt++) {
+                // Holistic Slot Filling: Try more shuffles to guarantee the best combination
+                for (let attempt = 0; attempt < 500; attempt++) {
                     let currentSlotMatches = Array(nC).fill(null);
                     let busyT = new Set();
                     let busyG = new Set();
@@ -285,18 +285,18 @@
                             if (busyT.has(m.t1) || busyT.has(m.t2)) continue;
                             if (teamLastS[m.t1] === slotIdx - 1 || teamLastS[m.t2] === slotIdx - 1) continue;
 
-                            // Group Diversity: Huge bonus for groups not yet in this slot
-                            let groupBonus = busyG.has(m.group) ? 0 : 5000;
+                            // Group Diversity: Massive priority for groups not yet in this slot
+                            let groupBonus = busyG.has(m.group) ? 0 : 10000;
 
                             // Rest: Prioritize teams who have been waiting longer
-                            let r1 = (teamLastS[m.t1] === undefined) ? 100 : (slotIdx - teamLastS[m.t1]);
-                            let r2 = (teamLastS[m.t2] === undefined) ? 100 : (slotIdx - teamLastS[m.t2]);
+                            let r1 = (teamLastS[m.t1] === undefined) ? 1000 : (slotIdx - teamLastS[m.t1]);
+                            let r2 = (teamLastS[m.t2] === undefined) ? 1000 : (slotIdx - teamLastS[m.t2]);
 
                             // Work: Prioritize teams with most matches left to play
-                            let workBonus = (getRem(m.t1) + getRem(m.t2)) * 50;
+                            let workBonus = (getRem(m.t1) + getRem(m.t2)) * 100;
 
-                            let score = groupBonus + (r1 + r2) * 10 + workBonus;
-                            if (db.teamLastC[m.t1] === c || db.teamLastC[m.t2] === c) score -= 5;
+                            let score = groupBonus + (r1 + r2) * 50 + workBonus;
+                            if (db.teamLastC[m.t1] === c || db.teamLastC[m.t2] === c) score -= 50;
 
                             if (score > bestS) {
                                 bestS = score;
@@ -318,7 +318,7 @@
                         bestSlotMatches = currentSlotMatches;
                         if (maxFilled === nC) break;
                     }
-                    if (attempt > 30 && maxFilled > 0) break;
+                    if (attempt > 100 && maxFilled > 0) break;
                 }
 
                 if (maxFilled > 0) {
