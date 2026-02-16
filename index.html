@@ -265,15 +265,15 @@
                 let bestSlotMatches = [];
                 let maxFilled = -1;
 
-                // Holistic Slot Filling: Try more shuffles to guarantee the best combination
-                for (let attempt = 0; attempt < 500; attempt++) {
+                // Holistic Slot Filling: Maximize carpet utilization for this time slot
+                for (let attempt = 0; attempt < 1000; attempt++) {
                     let currentSlotMatches = Array(nC).fill(null);
                     let busyT = new Set();
-                    let busyG = new Set();
                     let matchesForThisSlot = 0;
 
                     let candidates = pool.filter(m => !m.played);
-                    if (attempt > 0) candidates.sort(() => Math.random() - 0.5);
+                    // Critical: randomize candidates every attempt to explore different branchings
+                    candidates.sort(() => Math.random() - 0.5);
 
                     const getRem = (tid) => pool.filter(m => !m.played && (m.t1 === tid || m.t2 === tid)).length;
 
@@ -285,18 +285,13 @@
                             if (busyT.has(m.t1) || busyT.has(m.t2)) continue;
                             if (teamLastS[m.t1] === slotIdx - 1 || teamLastS[m.t2] === slotIdx - 1) continue;
 
-                            // Group Diversity: Massive priority for groups not yet in this slot
-                            let groupBonus = busyG.has(m.group) ? 0 : 10000;
+                            // Scoring: Prioritize teams with most work and most rest
+                            let r1 = (teamLastS[m.t1] === undefined) ? 100 : (slotIdx - teamLastS[m.t1]);
+                            let r2 = (teamLastS[m.t2] === undefined) ? 100 : (slotIdx - teamLastS[m.t2]);
+                            let work = getRem(m.t1) + getRem(m.t2);
 
-                            // Rest: Prioritize teams who have been waiting longer
-                            let r1 = (teamLastS[m.t1] === undefined) ? 1000 : (slotIdx - teamLastS[m.t1]);
-                            let r2 = (teamLastS[m.t2] === undefined) ? 1000 : (slotIdx - teamLastS[m.t2]);
-
-                            // Work: Prioritize teams with most matches left to play
-                            let workBonus = (getRem(m.t1) + getRem(m.t2)) * 100;
-
-                            let score = groupBonus + (r1 + r2) * 50 + workBonus;
-                            if (db.teamLastC[m.t1] === c || db.teamLastC[m.t2] === c) score -= 50;
+                            let score = (r1 + r2) * 10 + work * 50;
+                            if (db.teamLastC[m.t1] === c || db.teamLastC[m.t2] === c) score -= 5;
 
                             if (score > bestS) {
                                 bestS = score;
@@ -307,18 +302,16 @@
                         if (bestM) {
                             currentSlotMatches[c] = bestM;
                             busyT.add(bestM.t1); busyT.add(bestM.t2);
-                            busyG.add(bestM.group);
                             matchesForThisSlot++;
-                            candidates = candidates.filter(x => x.id !== bestM.id);
+                            // Don't remove from candidates here, just rely on busyT to explore full path
                         }
                     }
 
                     if (matchesForThisSlot > maxFilled) {
                         maxFilled = matchesForThisSlot;
                         bestSlotMatches = currentSlotMatches;
-                        if (maxFilled === nC) break;
+                        if (maxFilled === nC) break; // Perfect slot found
                     }
-                    if (attempt > 100 && maxFilled > 0) break;
                 }
 
                 if (maxFilled > 0) {
@@ -335,7 +328,7 @@
                     time += 15; if (time % 100 >= 60) time += 40;
                 } else {
                     time += 15; if (time % 100 >= 60) time += 40;
-                    if (db.slots.length > 500) break;
+                    if (db.slots.length > 300) break;
                 }
             }
             renderGrid(); renderLeagues();
