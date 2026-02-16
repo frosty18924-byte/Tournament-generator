@@ -262,40 +262,71 @@
 
             while (pool.some(m => !m.played)) {
                 let slotIdx = db.slots.length;
-                let slot = { time: formatTime(time), games: Array(nC).fill(null) };
-                let busy = new Set();
-                const getRemaining = (tid) => pool.filter(m => !m.played && (m.t1 === tid || m.t2 === tid)).length;
+                let bestSlotMatches = [];
+                let maxFilled = -1;
 
-                for (let c = 0; c < nC; c++) {
-                    let bestMatch = null;
-                    let maxScore = -1;
-                    for (let i = 0; i < pool.length; i++) {
-                        let m = pool[i];
-                        if (m.played || busy.has(m.t1) || busy.has(m.t2)) continue;
-                        if (teamLastS[m.t1] === slotIdx - 1 || teamLastS[m.t2] === slotIdx - 1) continue;
+                // Holistic Slot Filling: Try a few shuffles to find the best combination for this time slot
+                for (let attempt = 0; attempt < 100; attempt++) {
+                    let currentSlotMatches = Array(nC).fill(null);
+                    let busy = new Set();
+                    let matchesForThisSlot = 0;
 
-                        let r1 = (teamLastS[m.t1] === undefined) ? 100 : (slotIdx - teamLastS[m.t1]);
-                        let r2 = (teamLastS[m.t2] === undefined) ? 100 : (slotIdx - teamLastS[m.t2]);
-                        let work = getRemaining(m.t1) + getRemaining(m.t2);
-                        let score = (r1 + r2) * 100 + work;
-                        if (db.teamLastC[m.t1] === c || db.teamLastC[m.t2] === c) score -= 50;
-                        if (score > maxScore) { maxScore = score; bestMatch = m; }
+                    // Sort/Shuffle available matches to explore different combinations
+                    let candidates = pool.filter(m => !m.played);
+                    if (attempt > 0) candidates.sort(() => Math.random() - 0.5);
+
+                    for (let c = 0; c < nC; c++) {
+                        // Find the best match for this carpet in this permutation
+                        let bestM = null;
+                        let bestScore = -1;
+
+                        for (let m of candidates) {
+                            if (busy.has(m.t1) || busy.has(m.t2)) continue;
+                            if (teamLastS[m.t1] === slotIdx - 1 || teamLastS[m.t2] === slotIdx - 1) continue;
+
+                            let rest1 = (teamLastS[m.t1] === undefined) ? 100 : (slotIdx - teamLastS[m.t1]);
+                            let rest2 = (teamLastS[m.t2] === undefined) ? 100 : (slotIdx - teamLastS[m.t2]);
+                            let score = (rest1 + rest2) * 10;
+                            if (db.teamLastC[m.t1] === c || db.teamLastC[m.t2] === c) score -= 5;
+
+                            if (score > bestScore) {
+                                bestScore = score;
+                                bestM = m;
+                            }
+                        }
+
+                        if (bestM) {
+                            currentSlotMatches[c] = bestM;
+                            busy.add(bestM.t1); busy.add(bestM.t2);
+                            matchesForThisSlot++;
+                            // Temporarily remove from candidates for this attempt
+                            candidates = candidates.filter(x => x.id !== bestM.id);
+                        }
                     }
-                    if (bestMatch) {
-                        bestMatch.played = true;
-                        busy.add(bestMatch.t1); busy.add(bestMatch.t2);
-                        slot.games[c] = { ...bestMatch, s1: null, s2: null };
-                        teamLastS[bestMatch.t1] = slotIdx; teamLastS[bestMatch.t2] = slotIdx;
-                        db.teamLastC[bestMatch.t1] = c; db.teamLastC[bestMatch.t2] = c;
+
+                    if (matchesForThisSlot > maxFilled) {
+                        maxFilled = matchesForThisSlot;
+                        bestSlotMatches = currentSlotMatches;
+                        if (maxFilled === nC) break; // Efficiency: found a full slot
                     }
+                    if (attempt > 20 && maxFilled > 0) break; // Diminishing returns
                 }
-                if (slot.games.some(g => g !== null)) {
+
+                if (maxFilled > 0) {
+                    let slot = { time: formatTime(time), games: Array(nC).fill(null) };
+                    bestSlotMatches.forEach((m, c) => {
+                        if (m) {
+                            m.played = true;
+                            slot.games[c] = { ...m, s1: null, s2: null };
+                            teamLastS[m.t1] = slotIdx; teamLastS[m.t2] = slotIdx;
+                            db.teamLastC[m.t1] = c; db.teamLastC[m.t2] = c;
+                        }
+                    });
                     db.slots.push(slot);
-                    time += 15;
-                    if (time % 100 >= 60) time += 40;
+                    time += 15; if (time % 100 >= 60) time += 40;
                 } else {
-                    time += 15;
-                    if (time % 100 >= 60) time += 40;
+                    // Safety: if no match found even with shuffles, advance time only
+                    time += 15; if (time % 100 >= 60) time += 40;
                     if (db.slots.length > 500) break;
                 }
             }
