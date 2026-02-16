@@ -9,7 +9,8 @@ An optimized tournament manager for Carpet Bowls, featuring conflict-aware seedi
 - **Vercel Ready**: Deployable as a static web application.
 
 ## Deployment
-This project is deployed on Vercel: [https://bowls-master.vercel.app](https://bowls-master.vercel.app)
+- **Live Version**: [https://bowls-master.vercel.app](https://bowls-master.vercel.app)
+- **Source Code**: [https://github.com/frosty18924-byte/tournament-generator](https://github.com/frosty18924-byte/tournament-generator)
 
 ## Local Usage
 Simply open `index.html` in any modern web browser.
