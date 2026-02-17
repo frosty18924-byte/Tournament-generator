@@ -255,82 +255,122 @@
                         pool.push({ t1: ts[i].id, t2: ts[j].id, group: gn, played: false, id: Math.random() });
             });
 
-            db.slots = [];
-            let time = 900;
-            let teamLastS = {};
             db.teamLastC = {};
 
-            while (pool.some(m => !m.played)) {
-                let slotIdx = db.slots.length;
-                let bestSlotMatches = [];
-                let maxFilled = -1;
+            // Iterative Deepening: Start from the cleanest possible session count and work up
+            let maxM = 0;
+            Object.values(db.groups).forEach(g => maxM = Math.max(maxM, g.teams.length - 1));
+            // Back-to-back constraint: a team needs at least 2*Matches - 1 sessions
+            let minSessionsNeeded = Math.max(2 * maxM - 1, Math.ceil(pool.length / nC));
 
-                // Holistic Slot Filling: Maximize carpet utilization for this time slot
-                for (let attempt = 0; attempt < 1000; attempt++) {
-                    let currentSlotMatches = Array(nC).fill(null);
-                    let busyT = new Set();
-                    let matchesForThisSlot = 0;
+            let finalSlots = null;
+            let target = minSessionsNeeded;
 
-                    let candidates = pool.filter(m => !m.played);
-                    // Critical: randomize candidates every attempt to explore different branchings
-                    candidates.sort(() => Math.random() - 0.5);
+            function runAttempt(targetLimit) {
+                let currentPool = pool.map(m => ({ ...m, played: false }));
+                let slots = [];
+                let teamLastS = {};
+                let teamLastCLocal = {};
 
-                    const getRem = (tid) => pool.filter(m => !m.played && (m.t1 === tid || m.t2 === tid)).length;
+                for (let slotIdx = 0; slotIdx < targetLimit; slotIdx++) {
+                    let bestSlotMatches = [];
+                    let maxFilled = -1;
 
-                    for (let c = 0; c < nC; c++) {
-                        let bestM = null;
-                        let bestS = -1;
+                    // Holistic Slot Filling: Try fewer internal attempts but more whole-schedule attempts
+                    for (let attempt = 0; attempt < 50; attempt++) {
+                        let currentSlotMatches = Array(nC).fill(null);
+                        let busyT = new Set();
+                        let matchesForThisSlot = 0;
 
-                        for (let m of candidates) {
-                            if (busyT.has(m.t1) || busyT.has(m.t2)) continue;
-                            if (teamLastS[m.t1] === slotIdx - 1 || teamLastS[m.t2] === slotIdx - 1) continue;
+                        let candidates = currentPool.filter(m => !m.played);
+                        candidates.sort(() => Math.random() - 0.5);
 
-                            // Scoring: Prioritize teams with most work and most rest
-                            let r1 = (teamLastS[m.t1] === undefined) ? 100 : (slotIdx - teamLastS[m.t1]);
-                            let r2 = (teamLastS[m.t2] === undefined) ? 100 : (slotIdx - teamLastS[m.t2]);
-                            let work = getRem(m.t1) + getRem(m.t2);
+                        const getRem = (tid) => currentPool.filter(m => !m.played && (m.t1 === tid || m.t2 === tid)).length;
 
-                            let score = (r1 + r2) * 10 + work * 50;
-                            if (db.teamLastC[m.t1] === c || db.teamLastC[m.t2] === c) score -= 5;
+                        for (let c = 0; c < nC; c++) {
+                            let bestM = null;
+                            let bestS = -1;
 
-                            if (score > bestS) {
-                                bestS = score;
-                                bestM = m;
+                            for (let m of candidates) {
+                                if (busyT.has(m.t1) || busyT.has(m.t2)) continue;
+                                if (teamLastS[m.t1] === slotIdx - 1 || teamLastS[m.t2] === slotIdx - 1) continue;
+
+                                let r1 = (teamLastS[m.t1] === undefined) ? 100 : (slotIdx - teamLastS[m.t1]);
+                                let r2 = (teamLastS[m.t2] === undefined) ? 100 : (slotIdx - teamLastS[m.t2]);
+                                let work = getRem(m.t1) + getRem(m.t2);
+
+                                let score = (r1 + r2) * 10 + work * 50;
+                                if (teamLastCLocal[m.t1] === c || teamLastCLocal[m.t2] === c) score -= 5;
+
+                                if (score > bestS) {
+                                    bestS = score;
+                                    bestM = m;
+                                }
+                            }
+
+                            if (bestM) {
+                                currentSlotMatches[c] = bestM;
+                                busyT.add(bestM.t1); busyT.add(bestM.t2);
+                                matchesForThisSlot++;
                             }
                         }
 
-                        if (bestM) {
-                            currentSlotMatches[c] = bestM;
-                            busyT.add(bestM.t1); busyT.add(bestM.t2);
-                            matchesForThisSlot++;
-                            // Don't remove from candidates here, just rely on busyT to explore full path
+                        if (matchesForThisSlot > maxFilled) {
+                            maxFilled = matchesForThisSlot;
+                            bestSlotMatches = currentSlotMatches;
+                            if (maxFilled === nC) break;
                         }
                     }
 
-                    if (matchesForThisSlot > maxFilled) {
-                        maxFilled = matchesForThisSlot;
-                        bestSlotMatches = currentSlotMatches;
-                        if (maxFilled === nC) break; // Perfect slot found
+                    if (maxFilled > 0) {
+                        let slot = { time: "", games: Array(nC).fill(null) };
+                        bestSlotMatches.forEach((m, c) => {
+                            if (m) {
+                                m.played = true;
+                                slot.games[c] = { ...m, s1: null, s2: null };
+                                teamLastS[m.t1] = slotIdx; teamLastS[m.t2] = slotIdx;
+                                teamLastCLocal[m.t1] = c; teamLastCLocal[m.t2] = c;
+                            }
+                        });
+                        slots.push(slot);
                     }
+                    if (currentPool.every(m => m.played)) return slots;
                 }
+                return null;
+            }
 
-                if (maxFilled > 0) {
-                    let slot = { time: formatTime(time), games: Array(nC).fill(null) };
-                    bestSlotMatches.forEach((m, c) => {
-                        if (m) {
-                            m.played = true;
-                            slot.games[c] = { ...m, s1: null, s2: null };
-                            teamLastS[m.t1] = slotIdx; teamLastS[m.t2] = slotIdx;
-                            db.teamLastC[m.t1] = c; db.teamLastC[m.t2] = c;
+            // Search loop
+            while (!finalSlots && target < 150) {
+                // Try up to 100 full schedule attempts for this target session count
+                for (let a = 0; a < 100; a++) {
+                    finalSlots = runAttempt(target);
+                    if (finalSlots) break;
+                }
+                if (finalSlots) break;
+                target++;
+            }
+
+            if (finalSlots) {
+                db.slots = finalSlots;
+                // Assign times
+                let time = 900;
+                db.slots.forEach(s => {
+                    s.time = formatTime(time);
+                    time += 15; if (time % 100 >= 60) time += 40;
+                });
+
+                // Set final teamLastC for variety in KO phase
+                db.teamLastC = {};
+                db.slots.forEach((s, sIdx) => {
+                    s.games.forEach((g, cIdx) => {
+                        if (g) {
+                            db.teamLastC[g.t1] = cIdx;
+                            db.teamLastC[g.t2] = cIdx;
                         }
                     });
-                    db.slots.push(slot);
-                    time += 15; if (time % 100 >= 60) time += 40;
-                } else {
-                    time += 15; if (time % 100 >= 60) time += 40;
-                    if (db.slots.length > 300) break;
-                }
+                });
             }
+
             renderGrid(); renderLeagues();
             showTab(null, 'grid-view');
             document.getElementById('t-group').classList.add('active');
