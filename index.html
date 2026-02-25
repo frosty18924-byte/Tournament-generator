@@ -209,6 +209,98 @@
                 border: 1px solid #ddd;
                 background: white;
             }
+
+            .scorecard-container {
+                display: block !important;
+            }
+
+            .page-break {
+                page-break-after: always;
+            }
+        }
+
+        .scorecard-container {
+            display: none;
+            padding: 20px;
+        }
+
+        .scorecard {
+            border: 2px solid #333;
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto 40px auto;
+            padding: 20px;
+            background: white;
+            font-family: sans-serif;
+        }
+
+        .scorecard-header {
+            text-align: center;
+            border-bottom: 2px solid #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+        }
+
+        .scorecard-header h2 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+
+        .scorecard-header p {
+            margin: 5px 0 0 0;
+            font-weight: bold;
+        }
+
+        .scorecard-body {
+            display: grid;
+            grid-template-columns: 1fr 60px 1fr;
+            gap: 0;
+            border: 1px solid #333;
+        }
+
+        .sc-col {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sc-cell {
+            border: 0.5px solid #333;
+            padding: 8px;
+            text-align: center;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .sc-header {
+            background: #eee;
+            font-size: 0.8rem;
+            height: 50px;
+        }
+
+        .sc-team-side {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .score-box {
+            background: #fff;
+        }
+
+        .sc-footer {
+            margin-top: 30px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .sc-sig {
+            border-top: 1px solid #333;
+            width: 45%;
+            padding-top: 5px;
+            font-size: 0.8rem;
+            text-align: center;
         }
     </style>
 </head>
@@ -234,6 +326,7 @@
                         onchange="drawTeamInputs()"></div>
                 <div class="field"><label>Groups</label><input type="number" id="nG" value="2"></div>
                 <div class="field"><label>Carpets</label><input type="number" id="nC" value="3"></div>
+                <div class="field"><label>Ends</label><input type="number" id="nEnds" value="7"></div>
                 <div class="field"><label>Qualify To</label>
                     <select id="koSize">
                         <option value="4">Top 4</option>
@@ -248,6 +341,7 @@
         </div>
 
         <div id="grid-view" class="content"></div>
+        <div id="scorecard-view" class="scorecard-container"></div>
         <div id="league-view" class="content">
             <div id="league-target"
                 style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px;"></div>
@@ -612,7 +706,10 @@
             });
             legendH += `</div>`;
 
-            let h = `<button class="btn-main no-print" style="background:#455a64; margin-bottom:15px; width:auto;" onclick="window.print()">PRINT / EXPORT SCHEDULE</button>`;
+            let h = `<div class="no-print" style="display:flex; gap:10px; margin-bottom:15px;">
+                <button class="btn-main" style="background:#455a64; width:auto; margin-top:0;" onclick="window.print()">PRINT / EXPORT SCHEDULE</button>
+                <button class="btn-main" style="background:#d32f2f; width:auto; margin-top:0;" onclick="printScorecards()">PRINT ALL SCORECARDS</button>
+            </div>`;
             h += legendH;
             h += `<table><tr><th>Time</th>`;
             for (let i = 1; i <= nC; i++) h += `<th>Carpet ${i}</th>`;
@@ -625,6 +722,50 @@
                 h += `</tr>`;
             });
             document.getElementById('grid-view').innerHTML = h + `</table>`;
+        }
+
+        function printScorecards() {
+            const nEnds = parseInt(document.getElementById('nEnds').value);
+            let h = "";
+            db.slots.forEach(s => {
+                s.games.forEach((g, cIdx) => {
+                    if (!g) return;
+                    h += `<div class="scorecard page-break">
+                        <div class="scorecard-header">
+                            <h2>${s.time}</h2>
+                            <p>CARPET ${cIdx + 1}</p>
+                        </div>
+                        <div class="scorecard-body">
+                            <div class="sc-col">
+                                <div class="sc-cell sc-header">${db.teamNames[g.t1]}</div>
+                                <div class="sc-team-side">
+                                    <div class="sc-cell sc-header">Score</div>
+                                    <div class="sc-cell sc-header">Tally</div>
+                                </div>
+                                ${Array(nEnds).fill(0).map(() => `<div class="sc-team-side"><div class="sc-cell"></div><div class="sc-cell"></div></div>`).join('')}
+                            </div>
+                            <div class="sc-col">
+                                <div class="sc-cell sc-header">End</div>
+                                ${Array(nEnds).fill(0).map((_, i) => `<div class="sc-cell">${i + 1}</div>`).join('')}
+                            </div>
+                            <div class="sc-col">
+                                <div class="sc-cell sc-header">${db.teamNames[g.t2]}</div>
+                                <div class="sc-team-side">
+                                    <div class="sc-cell sc-header">Score</div>
+                                    <div class="sc-cell sc-header">Tally</div>
+                                </div>
+                                ${Array(nEnds).fill(0).map(() => `<div class="sc-team-side"><div class="sc-cell"></div><div class="sc-cell"></div></div>`).join('')}
+                            </div>
+                        </div>
+                        <div class="sc-footer">
+                            <div class="sc-sig">Signature: ${db.teamNames[g.t1]}</div>
+                            <div class="sc-sig">Signature: ${db.teamNames[g.t2]}</div>
+                        </div>
+                    </div>`;
+                });
+            });
+            document.getElementById('scorecard-view').innerHTML = h;
+            window.print();
         }
 
         function upS(id, side, val) {
