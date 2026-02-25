@@ -283,6 +283,7 @@
                     for (let attempt = 0; attempt < 100; attempt++) {
                         let currentSlotMatches = Array(nC).fill(null);
                         let busyT = new Set();
+                        let busyGroups = new Set();
                         let matchesForThisSlot = 0;
 
                         let candidates = currentPool.filter(m => !m.played);
@@ -313,6 +314,9 @@
                                 if (teamLastCLocal[m.t1] === c || teamLastCLocal[m.t2] === c) score -= 5;
                                 if (preferredGroup && m.group === preferredGroup) score += 1000;
 
+                                // Group Diversity Bonus
+                                if (!busyGroups.has(m.group)) score += 500;
+
                                 if (score > bestS) {
                                     bestS = score;
                                     bestM = m;
@@ -322,6 +326,7 @@
                             if (bestM) {
                                 currentSlotMatches[c] = bestM;
                                 busyT.add(bestM.t1); busyT.add(bestM.t2);
+                                busyGroups.add(bestM.group);
                                 matchesForThisSlot++;
                             }
                         }
@@ -352,12 +357,12 @@
 
             // Search loop: Try Wave System first for common 2-group setups reaching for minimum
             const commonWaveCase = (nT === 12 && nG === 2 && nC === 3);
-            
+
             while (!finalSlots && target < 200) {
                 // Highly exhaustive search for the current target
                 for (let a = 0; a < 200; a++) {
                     // Start with Wave System preference if applicable or as a general heuristic strategy
-                    let useWave = commonWaveCase || (a < 50 && nG === 2); 
+                    let useWave = commonWaveCase || (a < 50 && nG === 2);
                     finalSlots = runAttempt(target, useWave);
                     if (finalSlots) break;
                 }
