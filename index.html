@@ -197,7 +197,7 @@
             }
 
             .content {
-                display: block !important;
+                display: none !important;
                 padding: 0;
             }
 
@@ -211,6 +211,14 @@
             }
 
             .scorecard-container {
+                display: none !important;
+            }
+
+            body.print-mode-grid .content {
+                display: block !important;
+            }
+
+            body.print-mode-scorecards .scorecard-container {
                 display: block !important;
             }
 
@@ -707,7 +715,7 @@
             legendH += `</div>`;
 
             let h = `<div class="no-print" style="display:flex; gap:10px; margin-bottom:15px;">
-                <button class="btn-main" style="background:#455a64; width:auto; margin-top:0;" onclick="window.print()">PRINT / EXPORT SCHEDULE</button>
+                <button class="btn-main" style="background:#455a64; width:auto; margin-top:0;" onclick="printGrid()">PRINT / EXPORT SCHEDULE</button>
                 <button class="btn-main" style="background:#d32f2f; width:auto; margin-top:0;" onclick="printScorecards()">PRINT ALL SCORECARDS</button>
             </div>`;
             h += legendH;
@@ -724,7 +732,15 @@
             document.getElementById('grid-view').innerHTML = h + `</table>`;
         }
 
+        function printGrid() {
+            document.body.classList.add('print-mode-grid');
+            document.body.classList.remove('print-mode-scorecards');
+            window.print();
+        }
+
         function printScorecards() {
+            document.body.classList.add('print-mode-scorecards');
+            document.body.classList.remove('print-mode-grid');
             const nEnds = parseInt(document.getElementById('nEnds').value);
             let h = "";
             db.slots.forEach(s => {
