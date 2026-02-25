@@ -737,22 +737,23 @@
                         </div>
                         <div class="scorecard-body">
                             <div class="sc-col">
-                                <div class="sc-cell sc-header">${db.teamNames[g.t1]}</div>
+                                <div class="sc-cell sc-header"><span>${db.teamNames[g.t1]}</span><br><span style="font-weight:normal; font-size:0.7rem;">Black</span></div>
                                 <div class="sc-team-side">
-                                    <div class="sc-cell sc-header">Score</div>
-                                    <div class="sc-cell sc-header">Tally</div>
+                                    <div class="sc-cell sc-header"></div>
+                                    <div class="sc-cell sc-header"></div>
                                 </div>
                                 ${Array(nEnds).fill(0).map(() => `<div class="sc-team-side"><div class="sc-cell"></div><div class="sc-cell"></div></div>`).join('')}
                             </div>
                             <div class="sc-col">
                                 <div class="sc-cell sc-header">End</div>
+                                <div class="sc-cell sc-header" style="height:40px;">#</div>
                                 ${Array(nEnds).fill(0).map((_, i) => `<div class="sc-cell">${i + 1}</div>`).join('')}
                             </div>
                             <div class="sc-col">
-                                <div class="sc-cell sc-header">${db.teamNames[g.t2]}</div>
+                                <div class="sc-cell sc-header"><span>${db.teamNames[g.t2]}</span><br><span style="font-weight:normal; font-size:0.7rem;">Brown</span></div>
                                 <div class="sc-team-side">
-                                    <div class="sc-cell sc-header">Score</div>
-                                    <div class="sc-cell sc-header">Tally</div>
+                                    <div class="sc-cell sc-header"></div>
+                                    <div class="sc-cell sc-header"></div>
                                 </div>
                                 ${Array(nEnds).fill(0).map(() => `<div class="sc-team-side"><div class="sc-cell"></div><div class="sc-cell"></div></div>`).join('')}
                             </div>
