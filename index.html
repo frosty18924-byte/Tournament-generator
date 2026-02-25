@@ -156,6 +156,60 @@
             font-size: 0.8rem;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
         }
+
+        .team-legend {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+            background: #f1f8e9;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #c8e6c9;
+        }
+
+        .legend-item {
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        @media print {
+
+            .header,
+            .tabs,
+            .config-box,
+            h3,
+            .btn-main,
+            .score-input,
+            .no-print {
+                display: none !important;
+            }
+
+            body {
+                background: white;
+                padding: 0;
+            }
+
+            .container {
+                box-shadow: none;
+                border: none;
+                max-width: 100%;
+            }
+
+            .content {
+                display: block !important;
+                padding: 0;
+            }
+
+            table {
+                font-size: 0.75rem;
+            }
+
+            .team-legend {
+                border: 1px solid #ddd;
+                background: white;
+            }
+        }
     </style>
 </head>
 
@@ -547,13 +601,26 @@
 
         function renderGrid() {
             let nC = parseInt(document.getElementById('nC').value);
-            let h = `<table><tr><th>Time</th>`;
+
+            // Render Legend
+            let legendH = `<div class="team-legend">`;
+            let teams = [];
+            Object.values(db.groups).forEach(g => teams.push(...g.teams));
+            teams.sort((a, b) => a.name.localeCompare(b.name));
+            teams.forEach((t, i) => {
+                legendH += `<div class="legend-item"><strong>#${i + 1}</strong>: ${t.name}</div>`;
+            });
+            legendH += `</div>`;
+
+            let h = `<button class="btn-main no-print" style="background:#455a64; margin-bottom:15px; width:auto;" onclick="window.print()">PRINT / EXPORT SCHEDULE</button>`;
+            h += legendH;
+            h += `<table><tr><th>Time</th>`;
             for (let i = 1; i <= nC; i++) h += `<th>Carpet ${i}</th>`;
             h += `</tr>`;
             db.slots.forEach(s => {
                 h += `<tr><td><strong>${s.time}</strong></td>`;
                 s.games.forEach(g => {
-                    h += g ? `<td>G${g.group}<br>${db.teamNames[g.t1]} v ${db.teamNames[g.t2]}<br><input class="score-input" onchange="upS('${g.id}',1,this.value)">:<input class="score-input" onchange="upS('${g.id}',2,this.value)"></td>` : `<td>-</td>`;
+                    h += g ? `<td>G${g.group}<br>${db.teamNames[g.t1]} v ${db.teamNames[g.t2]}<br><span class="no-print"><input class="score-input" value="${g.s1 !== null ? g.s1 : ''}" onchange="upS('${g.id}',1,this.value)">:<input class="score-input" value="${g.s2 !== null ? g.s2 : ''}" onchange="upS('${g.id}',2,this.value)"></span></td>` : `<td>-</td>`;
                 });
                 h += `</tr>`;
             });
