@@ -736,27 +736,24 @@
                             <p>CARPET ${cIdx + 1}</p>
                         </div>
                         <div class="scorecard-body">
-                            <div class="sc-col">
-                                <div class="sc-cell sc-header"><span>${db.teamNames[g.t1]}</span><br><span style="font-weight:normal; font-size:0.7rem;">Black</span></div>
-                                <div class="sc-team-side">
-                                    <div class="sc-cell sc-header"></div>
-                                    <div class="sc-cell sc-header"></div>
-                                </div>
-                                ${Array(nEnds).fill(0).map(() => `<div class="sc-team-side"><div class="sc-cell"></div><div class="sc-cell"></div></div>`).join('')}
-                            </div>
-                            <div class="sc-col">
-                                <div class="sc-cell sc-header">End</div>
-                                <div class="sc-cell sc-header" style="height:40px;">#</div>
-                                ${Array(nEnds).fill(0).map((_, i) => `<div class="sc-cell">${i + 1}</div>`).join('')}
-                            </div>
-                            <div class="sc-col">
-                                <div class="sc-cell sc-header"><span>${db.teamNames[g.t2]}</span><br><span style="font-weight:normal; font-size:0.7rem;">Brown</span></div>
-                                <div class="sc-team-side">
-                                    <div class="sc-cell sc-header"></div>
-                                    <div class="sc-cell sc-header"></div>
-                                </div>
-                                ${Array(nEnds).fill(0).map(() => `<div class="sc-team-side"><div class="sc-cell"></div><div class="sc-cell"></div></div>`).join('')}
-                            </div>
+                            <!-- Header Row 1: Team Names -->
+                            <div class="sc-cell sc-header sc-span-2"><span>${db.teamNames[g.t1]}</span></div>
+                            <div class="sc-cell sc-header">End</div>
+                            <div class="sc-cell sc-header sc-span-2"><span>${db.teamNames[g.t2]}</span></div>
+                            
+                            <!-- Header Row 2: Colors -->
+                            <div class="sc-cell sc-header sc-span-2" style="font-weight:normal; font-size:0.75rem;">Black</div>
+                            <div class="sc-cell sc-header">#</div>
+                            <div class="sc-cell sc-header sc-span-2" style="font-weight:normal; font-size:0.75rem;">Brown</div>
+                            
+                            <!-- Rows: [Box] [Box] [Num] [Box] [Box] -->
+                            ${Array(nEnds).fill(0).map((_, i) => `
+                                <div class="sc-cell"></div>
+                                <div class="sc-cell"></div>
+                                <div class="sc-cell" style="background:#f9f9f9;">${i + 1}</div>
+                                <div class="sc-cell"></div>
+                                <div class="sc-cell"></div>
+                            `).join('')}
                         </div>
                         <div class="sc-footer">
                             <div class="sc-sig">Signature: ${db.teamNames[g.t1]}</div>
