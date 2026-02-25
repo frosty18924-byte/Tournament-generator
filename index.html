@@ -234,71 +234,72 @@
 
         .scorecard {
             border: 2px solid #333;
-            width: 100%;
-            max-width: 500px;
+            width: 105mm;
+            height: 148mm;
             margin: 0 auto 40px auto;
-            padding: 20px;
+            padding: 8mm;
             background: white;
             font-family: sans-serif;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
         }
 
         .scorecard-header {
             text-align: center;
             border-bottom: 2px solid #333;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
+            margin-bottom: 15px;
+            padding-bottom: 5px;
         }
 
         .scorecard-header h2 {
             margin: 0;
-            font-size: 1.5rem;
+            font-size: 1.2rem;
         }
 
         .scorecard-header p {
-            margin: 5px 0 0 0;
+            margin: 2px 0 0 0;
             font-weight: bold;
+            font-size: 0.9rem;
         }
 
         .scorecard-body {
             display: grid;
-            grid-template-columns: 1fr 60px 1fr;
+            grid-template-columns: 40px 40px 50px 40px 40px;
             gap: 0;
             border: 1px solid #333;
-        }
-
-        .sc-col {
-            display: flex;
-            flex-direction: column;
+            width: fit-content;
+            margin: 0 auto;
         }
 
         .sc-cell {
             border: 0.5px solid #333;
-            padding: 8px;
+            padding: 2px;
             text-align: center;
-            height: 40px;
+            height: 35px;
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: bold;
+            font-size: 0.85rem;
         }
 
         .sc-header {
             background: #eee;
-            font-size: 0.8rem;
-            height: 50px;
+            font-size: 0.75rem;
+            min-height: 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }
 
-        .sc-team-side {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-        }
-
-        .score-box {
-            background: #fff;
+        .sc-span-2 {
+            grid-column: span 2;
         }
 
         .sc-footer {
-            margin-top: 30px;
+            margin-top: 20px;
             display: flex;
             justify-content: space-between;
         }
@@ -307,7 +308,7 @@
             border-top: 1px solid #333;
             width: 45%;
             padding-top: 5px;
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             text-align: center;
         }
     </style>
@@ -766,14 +767,14 @@
                             ${Array(nEnds).fill(0).map((_, i) => `
                                 <div class="sc-cell"></div>
                                 <div class="sc-cell"></div>
-                                <div class="sc-cell" style="background:#f9f9f9;">${i + 1}</div>
+                                <div class="sc-cell" style="background:#eee;">${i + 1}</div>
                                 <div class="sc-cell"></div>
                                 <div class="sc-cell"></div>
                             `).join('')}
                         </div>
                         <div class="sc-footer">
-                            <div class="sc-sig">Signature: ${db.teamNames[g.t1]}</div>
-                            <div class="sc-sig">Signature: ${db.teamNames[g.t2]}</div>
+                            <div class="sc-sig">Signature: .........................</div>
+                            <div class="sc-sig">Signature: .........................</div>
                         </div>
                     </div>`;
                 });
