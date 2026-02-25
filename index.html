@@ -257,16 +257,14 @@
 
             db.teamLastC = {};
 
-            // Iterative Deepening: Start from the cleanest possible session count and work up
             let maxM = 0;
             Object.values(db.groups).forEach(g => maxM = Math.max(maxM, g.teams.length - 1));
-            // Back-to-back constraint: a team needs at least 2*Matches - 1 sessions
             let minSessionsNeeded = Math.max(2 * maxM - 1, Math.ceil(pool.length / nC));
 
             let finalSlots = null;
             let target = minSessionsNeeded;
 
-            function runAttempt(targetLimit) {
+            function runAttempt(targetLimit, useWavePrefix = false) {
                 let currentPool = pool.map(m => ({ ...m, played: false }));
                 let slots = [];
                 let teamLastS = {};
@@ -276,14 +274,26 @@
                     let bestSlotMatches = [];
                     let maxFilled = -1;
 
-                    // Holistic Slot Filling: Try fewer internal attempts but more whole-schedule attempts
-                    for (let attempt = 0; attempt < 50; attempt++) {
+                    // Wave system: Prefer one group in even slots, another in odd slots
+                    let preferredGroup = null;
+                    if (useWavePrefix && nG === 2) {
+                        preferredGroup = (slotIdx % 2 === 0) ? 'A' : 'B';
+                    }
+
+                    for (let attempt = 0; attempt < 100; attempt++) {
                         let currentSlotMatches = Array(nC).fill(null);
                         let busyT = new Set();
                         let matchesForThisSlot = 0;
 
                         let candidates = currentPool.filter(m => !m.played);
-                        candidates.sort(() => Math.random() - 0.5);
+                        // Sort by preference but keep randomness
+                        candidates.sort((a, b) => {
+                            if (preferredGroup) {
+                                if (a.group === preferredGroup && b.group !== preferredGroup) return -1;
+                                if (b.group === preferredGroup && a.group !== preferredGroup) return 1;
+                            }
+                            return Math.random() - 0.5;
+                        });
 
                         const getRem = (tid) => currentPool.filter(m => !m.played && (m.t1 === tid || m.t2 === tid)).length;
 
@@ -301,6 +311,7 @@
 
                                 let score = (r1 + r2) * 10 + work * 50;
                                 if (teamLastCLocal[m.t1] === c || teamLastCLocal[m.t2] === c) score -= 5;
+                                if (preferredGroup && m.group === preferredGroup) score += 1000;
 
                                 if (score > bestS) {
                                     bestS = score;
@@ -339,11 +350,15 @@
                 return null;
             }
 
-            // Search loop
-            while (!finalSlots && target < 150) {
-                // Try up to 100 full schedule attempts for this target session count
-                for (let a = 0; a < 100; a++) {
-                    finalSlots = runAttempt(target);
+            // Search loop: Try Wave System first for common 2-group setups reaching for minimum
+            const commonWaveCase = (nT === 12 && nG === 2 && nC === 3);
+            
+            while (!finalSlots && target < 200) {
+                // Highly exhaustive search for the current target
+                for (let a = 0; a < 200; a++) {
+                    // Start with Wave System preference if applicable or as a general heuristic strategy
+                    let useWave = commonWaveCase || (a < 50 && nG === 2); 
+                    finalSlots = runAttempt(target, useWave);
                     if (finalSlots) break;
                 }
                 if (finalSlots) break;
@@ -352,14 +367,11 @@
 
             if (finalSlots) {
                 db.slots = finalSlots;
-                // Assign times
                 let time = 900;
                 db.slots.forEach(s => {
                     s.time = formatTime(time);
                     time += 15; if (time % 100 >= 60) time += 40;
                 });
-
-                // Set final teamLastC for variety in KO phase
                 db.teamLastC = {};
                 db.slots.forEach((s, sIdx) => {
                     s.games.forEach((g, cIdx) => {
